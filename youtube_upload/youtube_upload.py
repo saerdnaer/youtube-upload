@@ -93,8 +93,11 @@ EXIT_CODES = {
 
 def to_utf8(s):
     """Re-encode string from the default system encoding to UTF-8."""
-    current = locale.getpreferredencoding()
-    return (s.decode(current).encode("UTF-8") if s and current != "UTF-8" else s)
+    if type(s) == unicode:
+        return s.encode("UTF-8")
+    else:
+        current = locale.getpreferredencoding()
+        return (s.decode(current).encode("UTF-8") if s and current != "UTF-8" else s)
 
 def debug(obj, fd=sys.stderr):
     """Write obj to standard error."""
@@ -444,13 +447,11 @@ def run_main(parser, options, args, output=sys.stdout):
         url = upload_video(youtube, options, video_path, len(args), index)
         output.write(url + "\n")
 
-def main(arguments):
-    """Upload video to Youtube."""
+def init_parser():
     usage = """Usage: %prog [OPTIONS] VIDEO_PATH ...
 
-    Upload videos to youtube."""
+Upload videos to youtube."""   
     parser = optparse.OptionParser(usage, version=VERSION)
-
     # Required options
     parser.add_option('-m', '--email', dest='email', type="string",
         help='Authentication email or Youtube username')
@@ -504,6 +505,12 @@ def main(arguments):
       metavar="STRING", help='Captcha token')
     parser.add_option('', '--captcha-response', dest='captcha_response', type="string",
       metavar="STRING", help='Captcha response')
+    return parser
+
+def main(arguments):
+    """Upload video to Youtube.""" 
+    
+    parser = init_parser()
 
     options, args = parser.parse_args(arguments)
     run_main(parser, options, args)
