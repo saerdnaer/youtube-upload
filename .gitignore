@@ -1,2 +1,3 @@
 *.pyc
 /youtube_upload/schedule-data.xml
+/youtube_upload/config.py
