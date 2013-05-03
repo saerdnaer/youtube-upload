@@ -64,24 +64,33 @@ if not(dry_run):
 
 youtube_upload.init_parser()
 
-
-#daten = urllib.urlopen("http://re-publica.de/schedule-data.xml").read()
-#schedule = lxml.etree.fromstring(daten).getroottree()
-
 #daten = unicode(daten, "utf8")
 schedule = lxml.etree.parse("schedule-data.xml")
+#schedule = lxml.etree.parse("http://re-publica.de/schedule-data.xml")
 option_parser = youtube_upload.init_parser()
 html_parser = HTMLParser()
 
 default_options = option_parser.get_default_values()
 
+tracks_to_category = {
+    'science & technology': 'Tech',
+    'business & innovation': 'Tech',
+    'research & education': 'Education',
+    're:publica': 'Entertainment ',
+    'culture': 'Music',
+    'media': 'News',
+    'politics & society': 'Nonprofit',
+    're:campaign': 'Nonprofit',
+}
+
 files = [ str(a)+'.mp4' for a in [1532, 5051, 1981, 1137, 5866, 5134]]
+
 #files = os.listdir(input_dir)
 for index, filename in enumerate(files):
     
     #event_id =     '5115'
     event_id = os.path.splitext(filename)[0]
-    event = schedule.xpath('.//event[@id="' + event_id + '"]')[0]
+    event = schedule.xpath('day/room/event[@id="' + event_id + '"]')[0]
     
     persons = event.find('persons').getchildren()
     
@@ -97,29 +106,30 @@ for index, filename in enumerate(files):
         options.title = 're:publica 2013: ' + title
     
     description = strip_tags(html_parser.unescape(event.find('description').text))
-    options.description = '''Find out more at: http://13.re-publica.de/node/{event_id}
-
-{abstract}
-{description} 
-'''.format({
-        'event_id': event_id, 
-        'abstract': event.find('abstract').text,
-        'description': description[:1000] + (description[1000:] and 'É'),
-    })
+    options.description = '\n'. join(filter(None, [
+        'Find out more at: http://13.re-publica.de/node/{0}\n'.format(event_id), 
+        event.find('abstract').text,
+        description[:1000] + (description[1000:] and '...'),
+    ]))
     for p in persons:
-        options.description += '[Vorname Nachname Speaker(1)] | Webseite | Twitter | Facebook \nWebseite Der Organisation'
-    keywords = ['#rp13', 'rp13', 're:publica', 'republica', event.find('track').text, event.find('room').text] + [p.text for p in persons]
+        person = schedule.xpath('speakers/speaker[@persons="' + p.get('id') + '"]')[0]
+        wo = person.find('website_organization').text
+        options.description += ('\n\n' 
+            + ' | '.join(filter(None, [person.find(a).text for a in ['fullname', 'website_personal', 'twitter', 'facebook', 'google']])) 
+            + str(wo and '\n') + str(wo) 
+        )
+
+    keywords = ['#rp13', 'rp13', 're:publica', 'republica', 
+        event.find('track').text, event.find('room').text] + [p.text for p in persons]
     options.keywords = ', ' . join(keywords)
-    options.category = 'Education'
+    options.category = tracks_to_category[event.find('track').text]
     options.private = True
 
-    
     video_path = input_dir + '/' + filename;
     
-    print options.title 
-    print options.description
-    print options.keywords
-    print
+    print options.title + '\n'
+    print options.description + '\n'
+    print options.keywords + '\n\n\n\n'
     
     if not(dry_run):
         url = youtube_upload.upload_video(youtube, options, video_path, len(files), index)
